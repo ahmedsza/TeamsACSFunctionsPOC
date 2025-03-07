@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "TeamsACSFunctions": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7221",
+      "devTunnelEnabled": true,
+      "devTunnelAccess": "public"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "containerRunArguments": "--init",
+      "httpPort": 31315,
+      "useSSL": false
+    }
+  }
+}

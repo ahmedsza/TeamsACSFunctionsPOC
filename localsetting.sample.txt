@@ -1,0 +1,16 @@
+﻿{
+    "IsEncrypted": false,
+    "Values": {
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+        "AcsConnectionString": "<Azure Communication Services connection string>",
+        "mp3Url": "https://github.com/Azure-Samples/cognitive-services-speech-sdk/raw/refs/heads/master/sampledata/audiofiles/TalkForAFewSeconds16.wav",
+        "callbackUriHost": "<Callback URI host for handling call events>",
+        "TeamscallbackUriHost": "<Callback URI host specific to Teams API interactions>",
+        "ClientId": "<Azure AD application client ID>",
+        "TenantId": "<Azure AD application tenant ID>",
+        "ClientSecret": "<Azure AD application client secret>",
+        "UserId": "<User ID>",
+        "cognitiveServicesEndpoint": "<Azure Cognitive Services endpoint>"
+    }
+}
