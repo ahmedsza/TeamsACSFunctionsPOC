@@ -82,7 +82,5 @@ namespace TeamsACSFunctions
         public string identityProvider { get; set; }
     }
 
-    internal class DemoClass
-    {
-    }
+   
 }

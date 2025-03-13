@@ -41,9 +41,9 @@ namespace TeamsACSFunctions
             var resourceUrl = "";
             var callGuid = "";
             string toneId = "";
-            // convert requestbody to Rootobject
+            // convert requestbody to CallData
             CallData callData = JsonSerializer.Deserialize<CallData>(requestBody);
-            //  callData.value[0].resourceData.toneInfo
+          
             // check if toneinfo is present 
             if (callData.value[0].resourceData.toneInfo != null)
             {
@@ -57,30 +57,17 @@ namespace TeamsACSFunctions
                     sequenceId = toneInfo.sequenceId;
                     toneId = toneInfo.tone;   
                     resourceUrl = callData.value[0].resource;
-                   // string pattern = @"[0-9a-fA-F\-]{36}";
-                   // Match match = Regex.Match(resourceUrl, pattern);
+               
                     _logger.LogWarning($"Resource URL: {resourceUrl}");
-                    // Inside the RunAsync method, after extracting the resourceUrl
                     if (!string.IsNullOrEmpty(resourceUrl))
                     {
                         string path = resourceUrl;
                          callGuid = path.Split('/').Last();
 
 
-                        //var match = Regex.Match(resourceUrl, @"\/app\/calls\/([a-f0-9\-]+)\/operations\/");
-                        //   string pattern = @"[0-9a-fA-F\-]{36}";
-                        // Match match = Regex.Match(resourceUrl, pattern);
-                        //  if (match.Success)
-                        //{
-                        //    // extract the value
-
-                        //    callGuid = match.Groups[1].Value;
+                 
                           _logger.LogInformation($"Extracted Call GUID: {callGuid}");
-                        //}
-                        //else
-                        //{
-                        //    _logger.LogInformation("Call GUID not found in resourceUrl");
-                        //}
+                     
                     }
 
                     _logger.LogInformation($"SequenceId: {toneInfo.sequenceId}");
@@ -114,9 +101,7 @@ namespace TeamsACSFunctions
             var authProvider = new ClientCredentialProvider(clientApplication);
 
             var authResult = await clientApplication.AcquireTokenForClient(scopes).ExecuteAsync();
-            // if you want to display the Auth Token 
-            //var authToken = authResult.AccessToken;
-            // _logger.LogInformation($"Auth Token: {authToken}");
+
 
             var mp3Url = Environment.GetEnvironmentVariable("mp3Url");
             ArgumentNullException.ThrowIfNullOrEmpty(mp3Url);
@@ -152,18 +137,3 @@ namespace TeamsACSFunctions
     }
 }
 
-public class Rootobject
-{
-    public string odatatype { get; set; }
-    public Value[] value { get; set; }
-}
-
-public class Value
-{
-    public ToneInfo ToneInfo { get; set; }
-}
-
-public class ToneInfo
-{
-    // Define properties of ToneInfo here
-}
