@@ -94,33 +94,10 @@ namespace TeamsACSFunctions
         /// </summary>
         public string Direction { get; set; }
 
-        /// <summary>
-        /// Gets or sets the participants in the call.
-        /// </summary>
-        public ParticipantInfo[] Participants { get; set; }
+      
     }
 
-    /// <summary>
-    /// Represents information about a participant in a call.
-    /// </summary>
-    public class ParticipantInfo
-    {
-        /// <summary>
-        /// Gets or sets the identity of the participant.
-        /// </summary>
-        public string Identity { get; set; }
-
-        /// <summary>
-        /// Gets or sets the display name of the participant.
-        /// </summary>
-        public string DisplayName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the role of the participant.
-        /// </summary>
-        public string Role { get; set; }
-    }
-
+    
     /// <summary>
     /// Represents resource data associated with a call.
     /// </summary>

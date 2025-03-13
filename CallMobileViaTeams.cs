@@ -15,22 +15,23 @@ using Prompt = Microsoft.Graph.Models.Prompt;
 using Microsoft.Kiota.Abstractions.Authentication;
 using System.Net.Http.Headers;
 using Microsoft.Kiota.Abstractions;
+using Microsoft.Graph.Communications.Calls.Item.SubscribeToTone;
+
 
 namespace TeamsACSFunctions
 {
-    public class CallViaTeamsAPI
+    public class CallMobileViaTeams
     {
-        private readonly ILogger<CallViaTeamsAPI> _logger;
+        private readonly ILogger<CallMobileViaTeams> _logger;
 
-        public CallViaTeamsAPI(ILogger<CallViaTeamsAPI> logger)
+        public CallMobileViaTeams(ILogger<CallMobileViaTeams> logger)
         {
             _logger = logger;
         }
 
-        [Function("CallViaTeamsAPI")]
+        [Function("CallMobileViaTeams")]
         public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequest req)
         {
-
             //remeer appregistration in azure portal
             //bot registration https://dev.botframework.com/bots/new 
             _logger.LogInformation("C# HTTP trigger function processed a request.");
@@ -46,18 +47,79 @@ namespace TeamsACSFunctions
             var mp3Url = Environment.GetEnvironmentVariable("mp3Url");
             ArgumentNullException.ThrowIfNullOrEmpty(mp3Url);
 
+        
+
+            var applicationId = Environment.GetEnvironmentVariable("applicationId");
+            ArgumentNullException.ThrowIfNullOrEmpty(applicationId);
+
+            var applicationDisplayName = Environment.GetEnvironmentVariable("applicationDisplayName");
+            ArgumentNullException.ThrowIfNullOrEmpty(applicationDisplayName);
 
             var TeamscallbackUriHost = Environment.GetEnvironmentVariable("TeamscallbackUriHost");
             ArgumentNullException.ThrowIfNullOrEmpty(TeamscallbackUriHost);
 
+            var cognitiveKey = Environment.GetEnvironmentVariable("cognitiveKey");
+            ArgumentNullException.ThrowIfNullOrEmpty(cognitiveKey);
+
+            var cognitiveRegion = Environment.GetEnvironmentVariable("cognitiveRegion");
+            ArgumentNullException.ThrowIfNullOrEmpty(cognitiveRegion);
+            var blobConnectionString = Environment.GetEnvironmentVariable("blobConnectionString");
+            ArgumentNullException.ThrowIfNullOrEmpty(blobConnectionString);
+            var blobContainerName = Environment.GetEnvironmentVariable("blobContainerName");
+            ArgumentNullException.ThrowIfNullOrEmpty(blobContainerName);
+
             var ticket = await JsonSerializer.DeserializeAsync<Ticket>(req.Body);
-           
+
             var userId = ticket.UserID;
+            //var telephoneNumber = "+27836258489";
+            //var telephoneNumber = "+27838053885";
+
+            var ttsHelper = new TTSHelper(cognitiveKey,cognitiveRegion , blobConnectionString, blobContainerName);
+
+            // generate a unique name for the audio file
+            var audioFileName = $"{Guid.NewGuid()}.wav";
+            string sasUrl = await ttsHelper.ConvertToSpeechAsync(ticket, audioFileName);
+            Console.WriteLine($"SAS URL: {sasUrl}");
+            mp3Url = sasUrl;
+
+            var telephoneNumber = userId;
 
             var requestBody = new Call
             {
                 OdataType = "#microsoft.graph.call",
                 CallbackUri = TeamscallbackUriHost,
+                Source = new ParticipantInfo
+                {
+                    OdataType = "#microsoft.graph.participantInfo",
+                    Identity = new IdentitySet
+                    {
+                        OdataType = "#microsoft.graph.identitySet",
+                        
+                        AdditionalData = new Dictionary<string, object>
+                        
+            {
+                {
+                    "applicationInstance" , new Identity
+                    {
+                        OdataType = "#microsoft.graph.identity",
+                        DisplayName = applicationDisplayName,
+                        
+                        Id = applicationId,
+                        AdditionalData = new Dictionary<string, object>
+                        {
+                            { "tenantId", tenantId },
+                         
+                        }
+                    }
+                },
+            }
+            },
+                    CountryCode = null,
+                    EndpointType = null,
+                    Region = null,
+                    LanguageId = null,
+                   
+                },
 
                 Targets = new List<InvitationParticipantInfo>
     {
@@ -67,13 +129,18 @@ namespace TeamsACSFunctions
             Identity = new IdentitySet
             {
                 OdataType = "#microsoft.graph.identitySet",
-                User = new Identity
-                {
-                    Id= userId,
-                   
-                    // Id = "3c41663b-91ae-4b62-be41-2d9be7459772",
-                },
-
+            
+               AdditionalData = new Dictionary<string, object>
+                        {
+                   {
+                        "phone" , new Identity
+                        {
+                            OdataType = "#microsoft.graph.identity",
+                            Id = telephoneNumber,
+                        }
+                    }
+                  
+                        }
             },
 
         },
@@ -101,7 +168,7 @@ namespace TeamsACSFunctions
                     }
                 },
 
-                TenantId = tenantId // "91b8f903-6afd-49d6-aefa-564f634b2cb3"
+                TenantId = tenantId 
             };
 
             var scopes = new[]
@@ -135,18 +202,27 @@ namespace TeamsACSFunctions
             .Build();
 
             var authProvider = new ClientCredentialProvider(clientApplication);
+
+            var authResult = await clientApplication.AcquireTokenForClient(scopes).ExecuteAsync();
+           // if you want to display the Auth Token 
+           //var authToken = authResult.AccessToken;
+           // _logger.LogInformation($"Auth Token: {authToken}");
+
+      
             var graphClient = new GraphServiceClient(authProvider);
+
 
             var result = await graphClient.Communications.Calls.PostAsync(requestBody);
             //var result = await graphClient.Communications.Calls["{call-id}"].PlayPrompt.PostAsync(requestBody);
 
+            _logger.LogInformation("about to make call to: " + telephoneNumber);
             // wait until result is established
             while (result.State != Microsoft.Graph.Models.CallState.Established)
             {
                 await Task.Delay(1000);
                 result = await graphClient.Communications.Calls[result.Id].GetAsync();
             }
-
+            _logger.LogInformation("call establised to: " + telephoneNumber);
             var playPromptOperation = await graphClient.Communications.Calls[result.Id].PlayPrompt.PostAsync(new PlayPromptPostRequestBody
             {
                 Prompts = new List<Prompt>
@@ -162,23 +238,16 @@ namespace TeamsACSFunctions
                 }
             });
 
-            return new OkObjectResult("Welcome to Azure Functions!");
+            var subscribeToTonerequestBody = new SubscribeToTonePostRequestBody
+            {
+                ClientContext = Guid.NewGuid().ToString(),
+            };
+            var resultTone = await graphClient.Communications.Calls[result.Id].SubscribeToTone.PostAsync(subscribeToTonerequestBody);
+
+
+            return new OkObjectResult("call made and audio played to " + telephoneNumber  );
         }
     }
 
-    public class ClientCredentialProvider : IAuthenticationProvider
-    {
-        private IConfidentialClientApplication _clientApplication;
-
-        public ClientCredentialProvider(IConfidentialClientApplication clientApplication)
-        {
-            _clientApplication = clientApplication;
-        }
-
-        public async Task AuthenticateRequestAsync(RequestInformation request, Dictionary<string, object>? additionalAuthenticationContext, CancellationToken cancellationToken)
-        {
-            var result = await _clientApplication.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync(cancellationToken);
-            request.Headers.Add("Authorization", $"Bearer {result.AccessToken}");
-        }
     }
-}
+
