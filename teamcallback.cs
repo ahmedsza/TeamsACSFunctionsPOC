@@ -21,11 +21,6 @@ namespace TeamsACSFunctions
             _logger = logger;
         }
 
-        /// <summary>
-        /// Azure Function that processes HTTP GET and POST requests.
-        /// </summary>
-        /// <param name="req">The HTTP request object.</param>
-        /// <returns>An IActionResult indicating the result of the function execution.</returns>
         [Function("teamcallback")]
         public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequest req)
         {
@@ -33,41 +28,51 @@ namespace TeamsACSFunctions
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var payload = JsonSerializer.Deserialize<CommsNotificationsPayload>(requestBody);
 
+            LogRequestDetails(requestBody, payload);
+
+            var callData = JsonSerializer.Deserialize<CallData>(requestBody);
+            var (sequenceId, toneId, resourceUrl, callGuid) = ExtractToneInfo(callData);
+
+            if (sequenceId != -1)
+            {
+                var graphClient = await GetGraphClientAsync();
+                await HandleToneAsync(graphClient, payload.CallId, toneId, callGuid);
+            }
+
+            return new OkObjectResult("Logger called");
+        }
+
+        private void LogRequestDetails(string requestBody, CommsNotificationsPayload payload)
+        {
             _logger.LogInformation($"requestBody: {requestBody}");
             _logger.LogInformation($"Teams notification received at: {DateTime.UtcNow}");
             _logger.LogInformation($"Payload: {payload.CallId}");
             _logger.LogInformation($"CallState: {payload.CallState}");
-            var sequenceId = -1;
-            var resourceUrl = "";
-            var callGuid = "";
+        }
+
+        private (int sequenceId, string toneId, string resourceUrl, string callGuid) ExtractToneInfo(CallData callData)
+        {
+            int sequenceId = -1;
             string toneId = "";
-            // convert requestbody to CallData
-            CallData callData = JsonSerializer.Deserialize<CallData>(requestBody);
-          
-            // check if toneinfo is present 
+            string resourceUrl = "";
+            string callGuid = "";
+
             if (callData.value[0].resourceData.toneInfo != null)
             {
-                _logger.LogInformation($"ToneInfo: {callData.value[0].resourceData.toneInfo}");
-                // extract the toneinfo
                 var toneInfo = callData.value[0].resourceData.toneInfo;
                 _logger.LogInformation($"ToneInfo: {toneInfo}");
-                // check if sequenceId is present
+
                 if (toneInfo.sequenceId != 0)
                 {
                     sequenceId = toneInfo.sequenceId;
-                    toneId = toneInfo.tone;   
+                    toneId = toneInfo.tone;
                     resourceUrl = callData.value[0].resource;
-               
                     _logger.LogWarning($"Resource URL: {resourceUrl}");
+
                     if (!string.IsNullOrEmpty(resourceUrl))
                     {
-                        string path = resourceUrl;
-                         callGuid = path.Split('/').Last();
-
-
-                 
-                          _logger.LogInformation($"Extracted Call GUID: {callGuid}");
-                     
+                        callGuid = resourceUrl.Split('/').Last();
+                        _logger.LogInformation($"Extracted Call GUID: {callGuid}");
                     }
 
                     _logger.LogInformation($"SequenceId: {toneInfo.sequenceId}");
@@ -82,7 +87,11 @@ namespace TeamsACSFunctions
                 _logger.LogInformation("ToneInfo is null");
             }
 
+            return (sequenceId, toneId, resourceUrl, callGuid);
+        }
 
+        private async Task<GraphServiceClient> GetGraphClientAsync()
+        {
             var clientId = Environment.GetEnvironmentVariable("clientId");
             ArgumentNullException.ThrowIfNullOrEmpty(clientId);
 
@@ -91,48 +100,48 @@ namespace TeamsACSFunctions
 
             var clientSecret = Environment.GetEnvironmentVariable("clientSecret");
             ArgumentNullException.ThrowIfNullOrEmpty(clientSecret);
+
             var scopes = new[] { "https://graph.microsoft.com/.default" };
             var clientApplication = ConfidentialClientApplicationBuilder
-            .Create(clientId)
-            .WithClientSecret(clientSecret)
-            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}/v2.0"))
-            .Build();
+                .Create(clientId)
+                .WithClientSecret(clientSecret)
+                .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}/v2.0"))
+                .Build();
 
             var authProvider = new ClientCredentialProvider(clientApplication);
+            await clientApplication.AcquireTokenForClient(scopes).ExecuteAsync();
 
-            var authResult = await clientApplication.AcquireTokenForClient(scopes).ExecuteAsync();
+            return new GraphServiceClient(authProvider);
+        }
 
-
-            var mp3Url = Environment.GetEnvironmentVariable("mp3Url");
-            ArgumentNullException.ThrowIfNullOrEmpty(mp3Url);
-            var graphClient = new GraphServiceClient(authProvider);
-            var result = await graphClient.Communications.Calls[payload.CallId].GetAsync();
+        private async Task HandleToneAsync(GraphServiceClient graphClient, string callId, string toneId, string callGuid)
+        {
+            var result = await graphClient.Communications.Calls[callId].GetAsync();
             _logger.LogInformation($"Call ID: {callGuid}");
+
             if (toneId.Equals("tone1", StringComparison.Ordinal))
             {
+                var ThanksmediaUri = Environment.GetEnvironmentVariable("ThanksmediaUri");
+                ArgumentNullException.ThrowIfNullOrEmpty(ThanksmediaUri);
+
                 var playPromptOperation = await graphClient.Communications.Calls[callGuid].PlayPrompt.PostAsync(new PlayPromptPostRequestBody
                 {
                     ClientContext = callGuid,
                     Prompts = new List<Microsoft.Graph.Models.Prompt>
-                    {
-                        new Microsoft.Graph.Models.MediaPrompt
                         {
-                            OdataType = "#microsoft.graph.mediaPrompt",
-                            MediaInfo = new Microsoft.Graph.Models.MediaInfo
+                            new Microsoft.Graph.Models.MediaPrompt
                             {
-                                OdataType = "#microsoft.graph.mediaInfo",
-                                Uri = "https://github.com/ahmedsza/SimpleWebApp/raw/refs/heads/main/thanks.wav",
-                                ResourceId = Guid.NewGuid().ToString(),
+                                OdataType = "#microsoft.graph.mediaPrompt",
+                                MediaInfo = new Microsoft.Graph.Models.MediaInfo
+                                {
+                                    OdataType = "#microsoft.graph.mediaInfo",
+                                    Uri = ThanksmediaUri,
+                                    ResourceId = Guid.NewGuid().ToString(),
+                                },
                             },
-                        },
-                    }
+                        }
                 });
             }
-            //_logger.LogWarning(result.ToString());
-
-
-            return new OkObjectResult("Logger called");
-
         }
     }
 }

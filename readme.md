@@ -2,6 +2,7 @@
 This sample demonstrates how to make a call and play audio in 2 different way
 - Azure Communication Services (ACS) using Call Automation SDK
 - Microsoft Teams using the Rest API
+- Microsoft Teams making a call to a phone number 
 
 This is purely sample code used in a proof of concept 
 
@@ -41,17 +42,25 @@ Note when running locally, devtunnels was used to expose the endpoints to the in
 
 The `local.settings.json` file contains the following configuration values:
 
-
- 
 - **AzureWebJobsStorage**: Connection string for Azure WebJobs storage.
 - **FUNCTIONS_WORKER_RUNTIME**: Specifies the runtime for Azure Functions.
 - **AcsConnectionString**: Connection string for Azure Communication Services.
 - **mp3Url**: URL of the MP3 file to be played during calls.
 - **callbackUriHost**: Callback URI host for handling call events.
-- **clientId**, **tenantId**, **clientSecret**: Azure AD credentials for authenticating with Microsoft Graph (used in `CallViaTeamsAPI`).
 - **TeamscallbackUriHost**: Callback URI host specific to Teams API interactions.
+- **ClientId**: Azure AD client ID for authenticating with Microsoft Graph.
+- **TenantId**: Azure AD tenant ID for authenticating with Microsoft Graph.
+- **ClientSecret**: Azure AD client secret for authenticating with Microsoft Graph.
+- **UserId**: User ID for the recipient of the call.
 - **cognitiveServicesEndpoint**: Endpoint for Cognitive Services.
-- **UseTTS** : Boolean flag to indicate whether to use text-to-speech for call messages.If using then Cognitive Services values must be set
+- **UseTTS**: Boolean flag to indicate whether to use text-to-speech for call messages. If using, then Cognitive Services values must be set.
+- **applicationId**: Application ID for the bot instance.
+- **applicationDisplayName**: Display name for the bot instance.
+- **cognitiveKey**: Subscription key for Cognitive Services.
+- **cognitiveRegion**: Region for Cognitive Services.
+- **blobConnectionString**: Connection string for Azure Blob Storage.
+- **blobContainerName**: Name of the blob container for storing WAV files.
+- **ThanksmediaUri**: URL of the media file to be played as a thank you message.
 
 ## Making Calls
 The solution should preferably be deployed to Azure Functions. The following endpoints are available for making calls:

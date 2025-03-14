@@ -11,6 +11,14 @@
         "TenantId": "<Azure AD application tenant ID>",
         "ClientSecret": "<Azure AD application client secret>",
         "UserId": "<User ID>",
-        "cognitiveServicesEndpoint": "<Azure Cognitive Services endpoint>"
+        "cognitiveServicesEndpoint": "<Azure Cognitive Services endpoint>",
+        "UseTTS": "true",
+        "applicationId": "<bot user application ID>",
+        "applicationDisplayName": "<bot user application display name>",
+        "cognitiveKey": "<Azure Cognitive Services key>",
+        "cognitiveRegion": "<Azure Cognitive Services region>",
+        "blobConnectionString": "<Azure Blob Storage connection string>",
+        "blobContainerName": "<Azure Blob Storage container name>",
+        "ThanksmediaUri": "<URI for the thanks media file>"
     }
 }
